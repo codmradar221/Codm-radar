@@ -11,6 +11,8 @@ const CFG = {
   tgToken: process.env.TG_TOKEN || '', tgChat: process.env.TG_CHAT || '',
   sources: [
     { name: 'Reddit r/CallOfDutyMobile', url: 'https://www.reddit.com/r/CallOfDutyMobile/search.rss?q=redeem+code&restrict_sr=1&sort=new' },
+    { name: 'Reddit (old)', url: 'https://old.reddit.com/r/CallOfDutyMobile/search.rss?q=redeem+code&restrict_sr=1&sort=new' },
+
   ],
 };
 

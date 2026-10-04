@@ -4,14 +4,13 @@ import fs from 'node:fs';
 
 const CFG = {
   port: process.env.PORT || 3000,
-  intervalSec: 45,
+  intervalSec: 120,
   maxAgeH: 24,
   requireGlobalWord: false,
   ntfyTopic: process.env.NTFY_TOPIC || '',
   tgToken: process.env.TG_TOKEN || '', tgChat: process.env.TG_CHAT || '',
   sources: [
     { name: 'Reddit r/CallOfDutyMobile', url: 'https://www.reddit.com/r/CallOfDutyMobile/search.rss?q=redeem+code&restrict_sr=1&sort=new' },
-    { name: 'Reddit r/CallOfDutyMobile (codes)', url: 'https://www.reddit.com/r/CallOfDutyMobile/search.rss?q=codes&restrict_sr=1&sort=new' },
   ],
 };
 

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CODM Radar</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0e1311;--panel:#161d1a;--line:#26322d;--tx:#e6ece8;--mute:#8a9a92;--acc:#ff9f1c;--ok:#5ee0a0;--bad:#ff6b5e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:400 16px/1.5 'IBM Plex Sans',system-ui,sans-serif;padding:max(16px,env(safe-area-inset-top)) 16px 48px}
+main{max-width:720px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:24px 0 20px}
+h1{font:700 clamp(32px,8vw,52px)/1 'Chakra Petch',sans-serif;margin:0;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:6px 0 0;font-size:14px}
+.pulse{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok);margin-right:8px;animation:p 2s infinite}
+.pulse.off{background:var(--bad);animation:none}
+@keyframes p{50%{opacity:.3}}
+button{font:500 14px 'IBM Plex Sans',sans-serif;background:var(--acc);color:#1a1100;border:0;border-radius:6px;padding:10px 14px;cursor:pointer}
+button.ghost{background:transparent;color:var(--tx);border:1px solid var(--line)}
+.card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:6px;padding:16px;margin-bottom:12px}
+.card.exp{border-left-color:var(--line);opacity:.55}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.code{font:700 clamp(20px,5.5vw,28px) 'Chakra Petch',sans-serif;letter-spacing:.06em;word-break:break-all}
+.left{font:700 18px 'Chakra Petch',sans-serif;color:var(--acc)}
+.card.exp .left{color:var(--mute)}
+.bar{height:3px;background:var(--line);margin:12px 0 10px;border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+.meta{color:var(--mute);font-size:13px}
+.meta a{color:var(--tx)}
+.empty{border:1px dashed var(--line);border-radius:6px;padding:28px;text-align:center;color:var(--mute)}
+h2{font:700 18px 'Chakra Petch',sans-serif;margin:28px 0 12px;color:var(--mute)}
+.err{color:var(--bad);font-size:13px;margin:8px 0}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    <h1>CODM Radar</h1>
+    <p class="sub"><span class="pulse" id="dot"></span><span id="state">Connexion…</span></p>
+  </div>
+  <button id="notif" class="ghost">Activer les notifications</button>
+</header>
+<div id="errs"></div>
+<section id="live"></section>
+<h2 id="hexp" hidden>Expirés</h2>
+<section id="old"></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let data=null, known=null;
+const fmt=d=>new Date(d).toLocaleString('fr-FR',{dateStyle:'full',timeStyle:'medium'});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ref=c=>new Date(c.publishedAt||c.detectedAt).getTime();
+function left(c){return ref(c)+data.maxAgeH*36e5-Date.now()}
+function hms(ms){const s=Math.floor(ms/1e3),h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h+'h '+String(m).padStart(2,'0')+'m '+String(s%60).padStart(2,'0')+'s'}
+function card(c){
+  const l=left(c),exp=l<=0,pct=Math.max(0,l/(data.maxAgeH*36e5)*100);
+  return `<article class="card ${exp?'exp':''}"><div class="row"><div class="code">${esc(c.code)}</div>
+  <div class="row"><span class="left">${exp?'Expiré':hms(l)}</span>${exp?'':`<button data-c="${esc(c.code)}">Copier</button>`}</div></div>
+  <div class="bar"><i style="width:${pct}%"></i></div>
+  <div class="meta">${c.publishedAt?'Publié le '+fmt(c.publishedAt):'Date de publication inconnue — détecté le '+fmt(c.detectedAt)}<br>
+  Source : ${c.url?`<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.source)}</a>`:esc(c.source)}</div></article>`;
+}
+function render(){
+  if(!data)return;
+  const live=data.codes.filter(c=>left(c)>0), old=data.codes.filter(c=>left(c)<=0);
+  $('live').innerHTML=live.length?live.map(card).join(''):'<div class="empty">Aucun code valide pour le moment. Le radar scanne toutes les '+data.intervalSec+' secondes.</div>';
+  $('old').innerHTML=old.map(card).join(''); $('hexp').hidden=!old.length;
+}
+async function poll(){
+  try{
+    data=await (await fetch('/api/codes')).json();
+    $('dot').className='pulse';
+    $('state').textContent='Actif · dernier scan '+(data.status.lastScan?new Date(data.status.lastScan).toLocaleTimeString('fr-FR'):'en cours');
+    $('errs').innerHTML=Object.entries(data.status.errors).map(([k,v])=>`<div class="err">Source en erreur : ${esc(k)} (${esc(v)})</div>`).join('');
+    const now=new Set(data.codes.map(c=>c.code));
+    if(known&&'Notification' in window){for(const c of data.codes)if(!known.has(c.code)&&Notification.permission==='granted')new Notification('Nouveau code CODM',{body:c.code})}
+    known=now; render();
+  }catch{ $('dot').className='pulse off'; $('state').textContent='Serveur injoignable' }
+}
+document.addEventListener('click',e=>{const c=e.target.dataset.c;if(c){navigator.clipboard.writeText(c);e.target.textContent='Copié'}});
+$('notif').onclick=async()=>{if(!('Notification' in window)){$('notif').textContent='Non pris en charge';return}const p=await Notification.requestPermission();$('notif').textContent=p==='granted'?'Notifications activées':'Notifications bloquées'};
+poll(); setInterval(poll,15000); setInterval(render,1000);
+</script>
+</body>
+</html>

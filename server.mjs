@@ -53,7 +53,7 @@ async function notify(e) {
 async function scan() {
   for (const s of CFG.sources) {
     try {
-      const r = await fetch(s.url, { headers: { 'User-Agent': 'Mozilla/5.0 (CODM-Radar)' }, signal: AbortSignal.timeout(15000) });
+      const r = await fetch(s.url, { headers: { 'User-Agent': 'codm-radar/1.0 (personal notifier)' }, signal: AbortSignal.timeout(15000) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const body = await r.text();
       const items = s.type === 'html' ? [{ text: clean(body), link: s.url, date: null }] : parseFeed(body);

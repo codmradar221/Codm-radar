@@ -4,7 +4,7 @@ import fs from 'node:fs';
 
 const CFG = {
   port: process.env.PORT || 3000,
-  intervalSec: 120,
+  intervalSec: 600,
   maxAgeH: 24,
   requireGlobalWord: false,
   ntfyTopic: process.env.NTFY_TOPIC || '',
